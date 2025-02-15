@@ -1,8 +1,7 @@
-import React from 'react'
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-export default function QRScanner() {
+const QRScanner = () => {
     const [qrData, setQrData] = useState("");
     const [message, setMessage] = useState("");
 
@@ -12,49 +11,50 @@ export default function QRScanner() {
             qrbox: { width: 250, height: 250 },
         });
 
-        scanner.render(
-            (data) => {
-                if (data) {
-                    setQrData(data);
-                    scanner.clear(); // Stop scanning after a successful scan
-                    sendQrDataToBackend(data);
-                }
-            },
-            (error) => console.log("Scanning error:", error)
-        );
+        scanner.render(handleScanSuccess, handleScanError);
 
         return () => scanner.clear(); // Cleanup on component unmount
     }, []);
 
+    // ✅ Extracted function for better readability
+    const handleScanSuccess = useCallback((data) => {
+        if (!data) return;
+        setQrData(data);
+        sendQrDataToBackend(data);
+    }, []);
+
+    // ✅ Logging errors for debugging
+    const handleScanError = useCallback((error) => {
+        console.warn("QR Scan Error:", error);
+    }, []);
+
+    // ✅ API Call Function with Improved Error Handling
     const sendQrDataToBackend = async (data) => {
-      try {
-          const response = await fetch("http://localhost:5000/verify-qr", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ qrCode: data }),
-          });
-  
-          const result = await response.json();
-          console.log("Backend Response:", result); // ✅ Debugging
-  
-          if (result.message) {
-              setMessage(result.message);
-          } else {
-              setMessage("No message received.");
-          }
-      } catch (error) {
-          console.error("Error sending QR code:", error);
-          setMessage("Failed to connect to server.");
-      }
-  };
-  
+        try {
+            const response = await fetch("http://localhost:5000/verify-qr", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ qrCode: data }),
+            });
+
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+
+            const result = await response.json();
+            setMessage(result.message || "Verification complete.");
+        } catch (error) {
+            console.error("QR Code Submission Error:", error);
+            setMessage("🚨 Failed to verify QR code. Please try again.");
+        }
+    };
 
     return (
         <div>
             <h2>Scan QR Code</h2>
             <div id="qr-reader"></div>
-            <p>Scanned Data: {qrData}</p>
-            <p>{message}</p>
+            <p>Scanned Data: <strong>{qrData || "Waiting for scan..."}</strong></p>
+            <p>{message && <strong>{message}</strong>}</p>
         </div>
     );
-}
+};
+
+export default QRScanner;
