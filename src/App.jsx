@@ -27,19 +27,27 @@ export default function QRScanner() {
     }, []);
 
     const sendQrDataToBackend = async (data) => {
-        try {
-            const response = await fetch("http://localhost:5000/verify-qr", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ qrCode: data }),
-            });
-
-            const result = await response.json();
-            setMessage(result.message);
-        } catch (error) {
-            console.error("Error sending QR code:", error);
-        }
-    };
+      try {
+          const response = await fetch("http://localhost:5000/verify-qr", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ qrCode: data }),
+          });
+  
+          const result = await response.json();
+          console.log("Backend Response:", result); // ✅ Debugging
+  
+          if (result.message) {
+              setMessage(result.message);
+          } else {
+              setMessage("No message received.");
+          }
+      } catch (error) {
+          console.error("Error sending QR code:", error);
+          setMessage("Failed to connect to server.");
+      }
+  };
+  
 
     return (
         <div>
